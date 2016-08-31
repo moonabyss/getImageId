@@ -11,18 +11,60 @@ import java.util.regex.Pattern;
 import static java.lang.System.out;
 
 public class Main {
-    public static void main(String args[]) throws Exception {
-        OutputStream out = new FileOutputStream("wow/15451.html");
+    public static void main(String args[]) {
 
-        URL url = new URL("http://ru.wowhead.com/item=15451");
-        URLConnection conn = url.openConnection();
-        conn.connect();
-        InputStream is = conn.getInputStream();
+        try {
+            BufferedReader br = new BufferedReader(new FileReader("items.txt"));
 
-        copy(is, out);
+            StringBuilder sb = new StringBuilder();
+            sb.append("USE site;\r\n");
+            String line = br.readLine();
+            while (line != null) {
+                //System.out.println(line);
+                //getUrl(line);    //Download file
+                sb.append("INSERT INTO ItemIcon VALUES ("+line+", \"\");\r\n");
+                line = br.readLine();
+                //Thread.sleep(1000);
+            }
+            File file = new File("items.sql");
+            BufferedWriter writer = null;
+            try {
+                writer = new BufferedWriter(new FileWriter(file));
+                writer.write(sb.toString());
+            } finally {
+                if (writer != null) writer.close();
+            }
 
-        is.close();
-        out.close();
+            br.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        File folder = new File("wow");
+        StringBuilder sb2 = new StringBuilder();
+        sb2.append("USE site;\r\n");
+        for (File fileEntry : folder.listFiles()) {
+            try {
+                //System.out.println(getIconName(fileEntry.getName()));
+                sb2.append("UPDATE ItemIcon SET ItemPic = \""+getIconName(fileEntry.getName())+"\" WHERE ItemId = "+fileEntry.getName().substring(0, fileEntry.getName().length()-5)+";\r\n");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        try {
+            File file2 = new File("icons.sql");
+            BufferedWriter writer2 = null;
+            try {
+                writer2 = new BufferedWriter(new FileWriter(file2));
+                writer2.write(sb2.toString());
+            } finally {
+                if (writer2 != null) writer2.close();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
 /*
         BufferedReader br = new BufferedReader(new FileReader("wow/15451.html"));
         try {
@@ -57,5 +99,54 @@ public class Main {
             }
             to.write(buffer, 0, numBytes);
         }
+    }
+
+    private static void getUrl(String id) {
+        InputStream is = null;
+        OutputStream out = null;
+        try {
+            out = new FileOutputStream("wow/" + id + ".html");
+
+            URL url = new URL("http://ru.wowhead.com/item=" + id);
+            URLConnection conn = url.openConnection();
+            conn.connect();
+            is = conn.getInputStream();
+
+            copy(is, out);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                is.close();
+                out.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private static String getIconName(String fileName) throws IOException {
+        BufferedReader br = new BufferedReader(new FileReader("wow/"+fileName));
+        try {
+            StringBuilder sb = new StringBuilder();
+            String line = br.readLine();
+
+            while (line != null) {
+                sb.append(line);
+                sb.append(System.lineSeparator());
+                line = br.readLine();
+            }
+            String everything = sb.toString();
+
+            Pattern p = Pattern.compile("large&#x2F;(.+).jpg");
+            Matcher m = p.matcher(everything);
+            if (m.find())
+                return m.group(1);
+        } finally {
+            br.close();
+        }
+        return "";
     }
 }
